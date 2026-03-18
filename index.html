@@ -37,7 +37,7 @@
         name: "Learning Hub",
         description: "Sales training & product knowledge",
         icon: "🎓",
-        color: "#4faa9e",
+        color: "#c9a84c",
         url: "https://charles-tsc2100.github.io/ts2100-portal/lms/",
         status: "live",
         order: 1
@@ -208,18 +208,18 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:          #0a0a0a;
-      --bg-elevated: #141414;
-      --surface:     #1a1a1a;
-      --surface2:    #222222;
-      --border:      #2a2a2a;
-      --border-hover:#3a3a3a;
-      --text:        #f0f0f0;
-      --text-secondary: #a0a0a0;
-      --muted:       #666666;
-      --teal:        #4faa9e;
-      --teal-dim:    #429488;
-      --navy:        #262a5b;
+      --bg:          #0c0c0c;
+      --bg-elevated: #0a0a0a;
+      --surface:     #131313;
+      --surface2:    #1a1a1a;
+      --border:      #1e1e1e;
+      --border-hover:#2a2a2a;
+      --text:        #d4d4d4;
+      --text-secondary: #888888;
+      --muted:       #5a5a5a;
+      --gold:        #c9a84c;
+      --gold-dim:    #a8893e;
+      --gold-light:  #e8d080;
       --danger:      #ef4444;
       --radius:      12px;
       --shadow:      0 1px 3px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
@@ -286,7 +286,7 @@
       position: absolute;
       width: 500px;
       height: 500px;
-      background: radial-gradient(circle, rgba(79,170,158,.08) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(201,168,76,.06) 0%, transparent 70%);
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -338,7 +338,7 @@
       outline: none;
     }
     .field input::placeholder { color: var(--muted); }
-    .field input:focus { border-color: var(--teal); background: var(--bg-elevated); }
+    .field input:focus { border-color: var(--gold); background: var(--bg-elevated); }
 
     .login-error {
       font-size: 13px;
@@ -350,8 +350,8 @@
     .btn-primary {
       width: 100%;
       padding: 13px;
-      background: var(--teal);
-      color: #fff;
+      background: var(--gold);
+      color: #0c0c0c;
       border: none;
       border-radius: 10px;
       font-size: 15px;
@@ -360,7 +360,7 @@
       cursor: pointer;
       transition: background .15s, transform .1s;
     }
-    .btn-primary:hover { background: var(--teal-dim); }
+    .btn-primary:hover { background: var(--gold-dim); }
     .btn-primary:active { transform: scale(.98); }
     .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
@@ -414,7 +414,7 @@
     }
 
     .topbar-search input::placeholder { color: var(--muted); }
-    .topbar-search input:focus { border-color: var(--teal); background: var(--surface2); }
+    .topbar-search input:focus { border-color: var(--gold); background: var(--surface2); }
 
     .topbar-search .search-icon {
       position: absolute;
@@ -451,7 +451,7 @@
     .avatar {
       width: 30px;
       height: 30px;
-      background: var(--teal);
+      background: var(--gold);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -571,7 +571,7 @@
     .app-card:hover {
       transform: translateY(-4px);
       box-shadow: var(--shadow-hover);
-      border-color: var(--teal);
+      border-color: var(--gold);
     }
 
     .app-card.coming-soon {
@@ -656,7 +656,7 @@
 
     /* ── LOADING SKELETON ─────────────────────────────────────────────────── */
     .skeleton {
-      background: linear-gradient(90deg, #1a1a1a 25%, #222222 50%, #1a1a1a 75%);
+      background: linear-gradient(90deg, #131313 25%, #1a1a1a 50%, #131313 75%);
       background-size: 200% 100%;
       animation: shimmer 1.4s infinite;
       border-radius: 12px;
@@ -675,21 +675,10 @@
   <div id="auth-screen">
     <div class="auth-card">
       <div class="auth-logo">
-        <!-- TS2100 Logo Mark -->
-        <div class="ts-logo">
-          <svg width="48" height="48" viewBox="0 0 100 100" fill="none">
-            <rect x="2" y="2" width="96" height="96" fill="#262a5b" stroke="#fff" stroke-width="3"/>
-            <polygon points="2,98 2,2 62,62" fill="#4faa9e"/>
-            <polygon points="2,2 40,2 40,40 2,40" fill="#262a5b"/>
-            <rect x="40" y="40" width="20" height="20" fill="#fff"/>
-          </svg>
-          <div class="ts-logo-text">
-            <span class="top">Today Style</span>
-            <span class="bottom">2100</span>
-          </div>
-        </div>
-
-        <p class="subtitle">Sign in to access your apps</p>
+        <img src="https://www.todaystyle2100.com/wp-content/uploads/2019/06/White-logo-Todaystyle-800x200-1-300x75.png" alt="Today Style 2100" style="height:38px; margin-bottom:28px;" />
+        <div style="width:40px; height:1px; background:var(--gold); margin:0 auto 18px;"></div>
+        <h1 style="font-size:22px; font-weight:600; color:var(--gold-light); letter-spacing:0.15em;">APPS PORTAL</h1>
+        <p class="subtitle" style="margin-top:8px;">Sign in to access your apps</p>
       </div>
 
       <form id="login-form" autocomplete="on">
@@ -714,17 +703,8 @@
 
     <!-- Topbar -->
     <header class="topbar">
-      <a href="#" class="ts-logo" style="text-decoration:none;">
-        <svg width="34" height="34" viewBox="0 0 100 100" fill="none">
-          <rect x="2" y="2" width="96" height="96" fill="#262a5b" stroke="#fff" stroke-width="3"/>
-          <polygon points="2,98 2,2 62,62" fill="#4faa9e"/>
-          <polygon points="2,2 40,2 40,40 2,40" fill="#262a5b"/>
-          <rect x="40" y="40" width="20" height="20" fill="#fff"/>
-        </svg>
-        <div class="ts-logo-text">
-          <span class="top" style="font-size:7px;">Today Style</span>
-          <span class="bottom" style="font-size:14px;">2100</span>
-        </div>
+      <a href="#" style="text-decoration:none; display:flex; align-items:center;">
+        <img src="https://www.todaystyle2100.com/wp-content/uploads/2019/06/White-logo-Todaystyle-800x200-1-300x75.png" alt="Today Style 2100" style="height:28px;" />
       </a>
 
       <div class="topbar-search">

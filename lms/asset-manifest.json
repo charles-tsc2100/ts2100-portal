@@ -1,15 +1,17 @@
 {
   "files": {
     "main.css": "/ts2100-portal/lms/static/css/main.e6c13ad2.css",
-    "main.js": "/ts2100-portal/lms/static/js/main.cae7960b.js",
+    "main.js": "/ts2100-portal/lms/static/js/main.b94fbe82.js",
+    "static/js/587.2e2c59d6.chunk.js": "/ts2100-portal/lms/static/js/587.2e2c59d6.chunk.js",
     "static/js/453.ea0acec7.chunk.js": "/ts2100-portal/lms/static/js/453.ea0acec7.chunk.js",
     "index.html": "/ts2100-portal/lms/index.html",
     "main.e6c13ad2.css.map": "/ts2100-portal/lms/static/css/main.e6c13ad2.css.map",
-    "main.cae7960b.js.map": "/ts2100-portal/lms/static/js/main.cae7960b.js.map",
+    "main.b94fbe82.js.map": "/ts2100-portal/lms/static/js/main.b94fbe82.js.map",
+    "587.2e2c59d6.chunk.js.map": "/ts2100-portal/lms/static/js/587.2e2c59d6.chunk.js.map",
     "453.ea0acec7.chunk.js.map": "/ts2100-portal/lms/static/js/453.ea0acec7.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.cae7960b.js"
+    "static/js/main.b94fbe82.js"
   ]
 }
