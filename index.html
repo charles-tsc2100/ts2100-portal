@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Today Style 2100 — Apps</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAtElEQVR4nGNU04r+z0AiuHl1CalacAJGchxALXDz6hIGpoGyHAZGHTDqgFEHjDpgwB3AQqoGfPWAunYM6Q7QbHAmWRM1wYBHwagDRh3A6L9qHlVbRNcb9hKtluotIlIshwGSCyJqWQwDFIcAJZYzMFAQApRaDANkhQC1LGdgIDEEqGkxDBAdArSwnIGBiBCglcUwgDcEaG05AwOOEKCHxTCAEQL0tJyBASkENoQmQhgwmk4AAN5YLCZ5+IHgAAAAAElFTkSuQmCC" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+
+    // ─── Firebase Config (todaystyle2100-portal project) ────────────────────────
+    const firebaseConfig = {
+      apiKey: "AIzaSyDRMrmxdFcx65s5fRTvCVmAwKOjl01nPPM",
+      authDomain: "todaystyle2100-portal.firebaseapp.com",
+      databaseURL: "https://todaystyle2100-portal-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "todaystyle2100-portal",
+      storageBucket: "todaystyle2100-portal.firebasestorage.app",
+      messagingSenderId: "370297803972",
+      appId: "1:370297803972:web:ae2a13a6ce659f2c496591"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+    const auth = getAuth(app);
+
+    // ─── Default apps (fallback if Firebase is empty) ─────────────────────────
+    const DEFAULT_APPS = [
+      {
+        id: "lms",
+        name: "Learning Hub",
+        description: "Sales training & product knowledge",
+        icon: "🎓",
+        color: "#c9a84c",
+        url: "https://charles-tsc2100.github.io/ts2100-portal/lms/",
+        status: "live",
+        order: 1
+      },
+      {
+        id: "sales",
+        name: "Sales App",
+        description: "CRM & pipeline management",
+        icon: "📊",
+        color: "#7c8cf5",
+        url: "#",
+        status: "soon",
+        order: 2
+      },
+      {
+        id: "chat",
+        name: "Team Chat",
+        description: "Internal messaging",
+        icon: "💬",
+        color: "#f59e42",
+        url: "#",
+        status: "soon",
+        order: 3
+      }
+    ];
+
+    // ─── App State ─────────────────────────────────────────────────────────────
+    let currentUser = null;
+    let apps = [];
+    let searchTerm = "";
+
+    // ─── DOM helpers ──────────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const show = id => $(id).classList.remove("hidden");
+    const hide = id => $(id).classList.add("hidden");
+
+    // ─── Load Apps from Firebase ──────────────────────────────────────────────
+    async function loadApps() {
+      try {
+        const snap = await get(ref(db, "portal/apps"));
+        if (snap.exists()) {
+          const data = snap.val();
+          apps = Object.values(data).sort((a, b) => (a.order || 99) - (b.order || 99));
+        } else {
+          apps = DEFAULT_APPS;
+          await set(ref(db, "portal/apps"), Object.fromEntries(DEFAULT_APPS.map(a => [a.id, a])));
+        }
+      } catch (e) {
+        console.warn("Firebase read failed, using defaults:", e.message);
+        apps = DEFAULT_APPS;
+      }
+      renderApps();
+    }
+
+    // ─── Render App Grid ──────────────────────────────────────────────────────
+    function renderApps() {
+      const grid = $("app-grid");
+      const empty = $("empty-state");
+      const filtered = apps.filter(a =>
+        a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (a.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      if (filtered.length === 0) {
+        grid.innerHTML = "";
+        show("empty-state");
+        return;
+      }
+      hide("empty-state");
+
+      grid.innerHTML = filtered.map(a => `
+        <a href="${a.url}" class="app-card ${a.status === 'soon' ? 'coming-soon' : ''}"
+           ${a.status === 'soon' ? '' : ``}
+           data-id="${a.id}">
+          <div class="app-icon" style="background:${a.color}18; color:${a.color}">
+            ${a.icon}
+          </div>
+          <div class="app-info">
+            <div class="app-name">${a.name}</div>
+            <div class="app-desc">${a.description || ""}</div>
+          </div>
+          ${a.status === 'soon' ? '<div class="badge-soon">Coming Soon</div>' : ''}
+        </a>
+      `).join("");
+    }
+
+    // ─── Auth: Login ──────────────────────────────────────────────────────────
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = $("email-input").value.trim();
+      const pass  = $("pass-input").value;
+      const btn   = $("login-btn");
+      const err   = $("login-error");
+
+      btn.textContent = "Signing in...";
+      btn.disabled = true;
+      err.textContent = "";
+
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+      } catch (error) {
+        err.textContent = friendlyAuthError(error.code);
+        btn.textContent = "Sign In";
+        btn.disabled = false;
+      }
+    }
+
+    function friendlyAuthError(code) {
+      const map = {
+        "auth/user-not-found": "No account found with that email.",
+        "auth/wrong-password": "Incorrect password.",
+        "auth/invalid-email": "Please enter a valid email address.",
+        "auth/too-many-requests": "Too many attempts. Please wait and try again.",
+        "auth/invalid-credential": "Invalid email or password.",
+      };
+      return map[code] || "Sign-in failed. Please try again.";
+    }
+
+    // ─── Auth: Sign Out ───────────────────────────────────────────────────────
+    window.handleSignOut = async () => {
+      await signOut(auth);
+    };
+
+    // ─── Auth State Observer ──────────────────────────────────────────────────
+    onAuthStateChanged(auth, user => {
+      currentUser = user;
+      if (user) {
+        hide("auth-screen");
+        show("portal-screen");
+        const displayName = user.displayName || user.email.split("@")[0];
+        $("user-name").textContent = displayName;
+        $("user-email").textContent = user.email;
+        $("user-avatar").textContent = displayName[0].toUpperCase();
+        $("greeting-name").textContent = displayName.split(" ")[0];
+        loadApps();
+      } else {
+        show("auth-screen");
+        hide("portal-screen");
+        $("login-btn").textContent = "Sign In";
+        $("login-btn").disabled = false;
+      }
+    });
+
+    // ─── Search ───────────────────────────────────────────────────────────────
+    window.handleSearch = (e) => {
+      searchTerm = e.target.value;
+      renderApps();
+    };
+
+    // ─── Bind login form ──────────────────────────────────────────────────────
+    document.addEventListener("DOMContentLoaded", () => {
+      $("login-form").addEventListener("submit", handleLogin);
+    });
+
+    // ─── User menu toggle ─────────────────────────────────────────────────────
+    window.toggleUserMenu = () => {
+      $("user-menu").classList.toggle("open");
+    };
+    document.addEventListener("click", e => {
+      if (!e.target.closest("#user-pill")) {
+        const m = $("user-menu");
+        if (m) m.classList.remove("open");
+      }
+    });
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0c0c0c;
+      --bg-elevated: #0a0a0a;
+      --surface:     #131313;
+      --surface2:    #1a1a1a;
+      --border:      #1e1e1e;
+      --border-hover:#2a2a2a;
+      --text:        #d4d4d4;
+      --text-secondary: #888888;
+      --muted:       #5a5a5a;
+      --gold:        #c9a84c;
+      --gold-dim:    #a8893e;
+      --gold-light:  #e8d080;
+      --danger:      #ef4444;
+      --radius:      12px;
+      --shadow:      0 1px 3px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04);
+      --shadow-hover: 0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── TS2100 LOGO (SVG inline) ─────────────────────────────────────────── */
+    .ts-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ts-logo svg { flex-shrink: 0; }
+
+    .ts-logo-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+    }
+
+    .ts-logo-text .top {
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .ts-logo-text .bottom {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--text);
+    }
+
+    /* ── AUTH SCREEN ──────────────────────────────────────────────────────── */
+    #auth-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle gradient glow behind card */
+    #auth-screen::before {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(201,168,76,.06) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 44px 40px;
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .auth-logo .ts-logo { justify-content: center; margin-bottom: 20px; }
+
+    .auth-logo .subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 0;
+    }
+
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 7px;
+    }
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      transition: border-color .15s, background .15s;
+      outline: none;
+    }
+    .field input::placeholder { color: var(--muted); }
+    .field input:focus { border-color: var(--gold); background: var(--bg-elevated); }
+
+    .login-error {
+      font-size: 13px;
+      color: var(--danger);
+      min-height: 18px;
+      margin-bottom: 12px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: var(--gold);
+      color: #0c0c0c;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn-primary:hover { background: var(--gold-dim); }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    .auth-footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .3px;
+    }
+
+    /* ── PORTAL SCREEN ────────────────────────────────────────────────────── */
+    #portal-screen { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Topbar */
+    .topbar {
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar .ts-logo-text .top { font-size: 8px; letter-spacing: 2.5px; }
+    .topbar .ts-logo-text .bottom { font-size: 16px; letter-spacing: 1.5px; }
+
+    .topbar-search {
+      flex: 1;
+      max-width: 360px;
+      position: relative;
+      margin: 0 auto;
+    }
+
+    .topbar-search input {
+      width: 100%;
+      padding: 9px 14px 9px 38px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .15s, background .15s;
+    }
+
+    .topbar-search input::placeholder { color: var(--muted); }
+    .topbar-search input:focus { border-color: var(--gold); background: var(--surface2); }
+
+    .topbar-search .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .topbar-spacer { flex: 1; }
+
+    /* User pill */
+    #user-pill {
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .user-pill-inner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 14px 5px 5px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      transition: border-color .15s;
+    }
+
+    .user-pill-inner:hover { border-color: var(--border-hover); }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-pill-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      max-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Dropdown */
+    #user-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-hover);
+      min-width: 220px;
+      overflow: hidden;
+      z-index: 200;
+    }
+
+    #user-menu.open { display: block; }
+
+    .menu-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .menu-header .menu-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .menu-header .menu-email { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 18px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background .1s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+
+    .menu-item:hover { background: var(--surface2); }
+    .menu-item.danger { color: var(--danger); }
+    .menu-item .mi-icon { font-size: 15px; width: 20px; text-align: center; }
+
+    /* Portal body */
+    .portal-body {
+      flex: 1;
+      padding: 44px 28px;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .portal-header {
+      margin-bottom: 36px;
+    }
+
+    .portal-header h2 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.4px;
+    }
+
+    .portal-header p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* App grid */
+    #app-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .app-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 28px 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+      color: var(--text);
+      box-shadow: var(--shadow);
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+      cursor: pointer;
+      position: relative;
+      text-align: center;
+      border: 1.5px solid var(--border);
+    }
+
+    .app-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: var(--gold);
+    }
+
+    .app-card.coming-soon {
+      opacity: .45;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .app-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      flex-shrink: 0;
+    }
+
+    .app-info { width: 100%; }
+
+    .app-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .app-desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .badge-soon {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 100px;
+      letter-spacing: .3px;
+      border: 1px solid var(--border);
+    }
+
+    /* Empty state */
+    #empty-state {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    #empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    #empty-state p { font-size: 15px; }
+
+    /* Footer */
+    .portal-footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      letter-spacing: .3px;
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .topbar { padding: 0 16px; gap: 10px; }
+      .topbar-search { max-width: 100%; }
+      .topbar .ts-logo-text { display: none; }
+      .user-pill-name { display: none; }
+      .portal-body { padding: 28px 16px; }
+      #app-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+      .app-card { padding: 22px 16px; }
+      .app-icon { width: 52px; height: 52px; font-size: 24px; }
+      .auth-card { padding: 32px 24px; }
+    }
+
+    /* ── LOADING SKELETON ─────────────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, #131313 25%, #1a1a1a 50%, #131313 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── AUTH SCREEN ──────────────────────────────────────────────────────── -->
+  <div id="auth-screen">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img src="https://www.todaystyle2100.com/wp-content/uploads/2019/06/White-logo-Todaystyle-800x200-1-300x75.png" alt="Today Style 2100" style="height:38px; margin-bottom:28px;" />
+        <div style="width:40px; height:1px; background:var(--gold); margin:0 auto 18px;"></div>
+        <h1 style="font-size:22px; font-weight:600; color:var(--gold-light); letter-spacing:0.15em;">APPS PORTAL</h1>
+        <p class="subtitle" style="margin-top:8px;">Sign in to access your apps</p>
+      </div>
+
+      <form id="login-form" autocomplete="on">
+        <div class="field">
+          <label for="email-input">Email</label>
+          <input type="email" id="email-input" placeholder="you@todaystyle2100.com" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="pass-input">Password</label>
+          <input type="password" id="pass-input" placeholder="Enter your password" autocomplete="current-password" required />
+        </div>
+        <div class="login-error" id="login-error"></div>
+        <button class="btn-primary" id="login-btn" type="submit">Sign In</button>
+      </form>
+
+      <div class="auth-footer">TODAY STYLE 2100 &middot; Internal Apps Portal</div>
+    </div>
+  </div>
+
+  <!-- ── PORTAL SCREEN ────────────────────────────────────────────────────── -->
+  <div id="portal-screen" class="hidden">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <a href="#" style="text-decoration:none; display:flex; align-items:center;">
+        <img src="https://www.todaystyle2100.com/wp-content/uploads/2019/06/White-logo-Todaystyle-800x200-1-300x75.png" alt="Today Style 2100" style="height:28px;" />
+      </a>
+
+      <div class="topbar-search">
+        <span class="search-icon">&#x1F50D;</span>
+        <input type="text" placeholder="Search apps..." oninput="handleSearch(event)" />
+      </div>
+
+      <div class="topbar-spacer"></div>
+
+      <!-- User pill -->
+      <div id="user-pill" onclick="toggleUserMenu()">
+        <div class="user-pill-inner">
+          <div class="avatar" id="user-avatar">?</div>
+          <span class="user-pill-name" id="user-name">User</span>
+        </div>
+
+        <div id="user-menu">
+          <div class="menu-header">
+            <div class="menu-name" id="user-name-menu"></div>
+            <div class="menu-email" id="user-email"></div>
+          </div>
+          <button class="menu-item danger" onclick="handleSignOut()">
+            <span class="mi-icon">&#x2190;</span> Sign Out
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <main class="portal-body">
+      <div class="portal-header">
+        <h2>Welcome back, <span id="greeting-name">there</span></h2>
+        <p>Select an app to get started</p>
+      </div>
+
+      <div id="app-grid">
+        <!-- Skeleton loading cards -->
+        <div class="app-card skeleton" style="height:180px;"></div>
+        <div class="app-card skeleton" style="height:180px;"></div>
+        <div class="app-card skeleton" style="height:180px;"></div>
+      </div>
+
+      <div id="empty-state" class="hidden">
+        <div class="empty-icon">&#x1F50D;</div>
+        <p>No apps match your search.</p>
+      </div>
+    </main>
+
+    <footer class="portal-footer">
+      &copy; 2026 Today Style 2100 &middot; All rights reserved
+    </footer>
+  </div>
+
+</body>
+</html>
